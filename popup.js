@@ -3,104 +3,147 @@ document.addEventListener("DOMContentLoaded", function() {
   chrome.runtime.sendMessage({ action: "stopCycling" });
   console.log("FOMO");
   let tabSettings = JSON.parse(localStorage.getItem("tabSettings")) || {},
-    currentTabs = {};
+    currentTabs = [];
   
   // Fetch all tabs and create UI for each
   chrome.tabs.query({currentWindow: true}, function(tabs) {
     const container = document.getElementById("tabs-container");
 
-    for (let t in tabs) {
-      let tab = tabs[t];
+    tabs = tabs.sort((a, b) => a.index - b.index);
 
-      const div = document.createElement("div");
-
-      // Display tab title
-      const titleLabel = document.createElement("span");
-      titleLabel.textContent = tab.title;
-      console.log(tab, tab.title);
-      div.appendChild(titleLabel);
-
-      const timeInput = document.createElement("input");
-      timeInput.type = "number";
-      timeInput.min = "1";
-      timeInput.value = "5"; // default 5 seconds
-      timeInput.style.marginLeft = "10px";  // Add some spacing for better UI
-
-      const refreshCheckbox = document.createElement("input");
-      refreshCheckbox.type = "checkbox";
-      refreshCheckbox.style.marginLeft = "10px";  // Add some spacing for better UI
-
-      div.appendChild(timeInput);
-      div.appendChild(refreshCheckbox);
-      container.appendChild(div);
-
+    tabs.forEach(tab => {
+   
       if (tabSettings[tab.url]) {
-        timeInput.value = tabSettings[tab.url].interval;
-        refreshCheckbox.checked = tabSettings[tab.url].refresh;
-        currentTabs[tab.id] = {
-          interval: tabSettings[tab.url].interval * 1000,
-          refresh: tabSettings[tab.url].refresh
-        }
+        currentTabs.push({
+          interval: tabSettings[tab.url].interval,
+          refresh: tabSettings[tab.url].refresh,
+          tabId: tab.id,
+          title: tab.title,
+          url: tab.url
+        });
       } else {
-        currentTabs[tab.id] = {
-          interval: 5000,
-          refresh: false
-        }
+        currentTabs.push({
+          interval: 5,
+          refresh: false,
+          tabId: tab.id,
+          title: tab.title,
+          url: tab.url
+        });
         tabSettings[tab.url] = {
           interval: 5,
           refresh: false
-        }
+        };
         localStorage.setItem("tabSettings", JSON.stringify(tabSettings));
       }
-
-      timeInput.addEventListener("change", () => {
-        currentTabs[tab.id].interval = parseInt(timeInput.value) * 1000;
-        tabSettings[tab.url].interval = parseInt(timeInput.value);
-        localStorage.setItem("tabSettings", JSON.stringify(tabSettings));
-      });
-
-      refreshCheckbox.addEventListener("change", () => {
-        currentTabs[tab.id].refresh = refreshCheckbox.checked;
-        tabSettings[tab.url].refresh = refreshCheckbox.checked;
-        localStorage.setItem("tabSettings", JSON.stringify(tabSettings));
-      });
-    }
+    });
+    renderTabEntries(currentTabs);
   });
 
   document.getElementById("start").addEventListener("click", function() {
-    const tabOrder = Object.keys(currentTabs).map(x => parseInt(x));
-    const intervals = {};
-    const refreshFlags = {};
-
-    for (let tabId in currentTabs) {
-      intervals[tabId] = currentTabs[tabId].interval;
-      refreshFlags[tabId] = currentTabs[tabId].refresh;
-    }
-
     chrome.runtime.sendMessage({
       action: "startCycling",
-      data: {
-        tabOrder,
-        intervals,
-        refreshFlags
-      }
+      data: currentTabs
     }).then(() => {
       window.close();
     });
 
   });
-
+/*
   document.getElementById("stop").addEventListener("click", function() {
     chrome.runtime.sendMessage({ action: "stopCycling" }).then(() => {
       window.close();
     });
   });
-
+*/
   document.getElementById("reset").addEventListener("click", function() {
     localStorage.removeItem("tabSettings");
     chrome.runtime.sendMessage({ action: "stopCycling" }).then(() => {
       window.close();
     });
   });
+
+  const createTabEntry = (tab) => {
+    const tr = document.createElement("tr");
+    const titleTd = document.createElement("td");
+    const refreshTd = document.createElement("td");
+    const intervalTd = document.createElement("td");
+    refreshTd.classList.add("refresh");
+    intervalTd.classList.add("interval");
+    titleTd.classList.add("title");
+  
+    const title = document.createTextNode(tab.title);
+    const refreshLabel = document.createElement("label");
+    const refreshCheckbox = document.createElement("input");
+    refreshCheckbox.type = "checkbox";
+    refreshCheckbox.checked = tab.refresh;
+    refreshCheckbox.addEventListener("change", () => {
+      tab.refresh = refreshCheckbox.checked;
+      tabSettings[tab.url].refresh = refreshCheckbox.checked;
+      localStorage.setItem("tabSettings", JSON.stringify(tabSettings));
+    });
+    const refreshLabelText = document.createTextNode("Refresh");
+    refreshLabel.appendChild(refreshCheckbox);
+    //refreshLabel.appendChild(refreshLabelText);
+  
+    const intervalInput = document.createElement("input");
+    intervalInput.type = "number";
+    intervalInput.min = 1;
+    intervalInput.max = 9999;
+    intervalInput.value = tab.interval;
+    intervalInput.addEventListener("change", () => {
+      tab.interval = parseInt(intervalInput.value);
+      tabSettings[tab.url].interval = tab.interval;
+      localStorage.setItem("tabSettings", JSON.stringify(tabSettings));
+    });
+  
+    titleTd.appendChild(title);
+    intervalTd.appendChild(intervalInput);
+    refreshTd.appendChild(refreshLabel);
+  
+    tr.appendChild(titleTd);
+    tr.appendChild(intervalTd);
+    tr.appendChild(refreshTd);
+  
+    return tr;
+  };
+  
+  const renderTabEntries = (tabs) => {
+    const tabsContainer = document.getElementById("tabs-container");
+    tabsContainer.innerHTML = "";
+  
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const tbody = document.createElement("tbody");
+    const tr = document.createElement("tr");
+    const th1 = document.createElement("th");
+    const th2 = document.createElement("th");
+    const th3 = document.createElement("th");
+    th3.classList.add("refresh");
+    th2.classList.add("interval");
+    th1.classList.add("title");
+  
+    const titleText = document.createTextNode("Title");
+    const refreshText = document.createTextNode("Refresh");
+    const intervalText = document.createTextNode("Interval (s)");
+  
+    th1.appendChild(titleText);
+    th2.appendChild(intervalText);
+    th3.appendChild(refreshText);
+  
+    tr.appendChild(th1);
+    tr.appendChild(th2);
+    tr.appendChild(th3);
+  
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    table.appendChild(tbody);
+  
+    tabsContainer.appendChild(table);
+  
+    for (const tab of tabs) {
+      const tabEntry = createTabEntry(tab);
+      tbody.appendChild(tabEntry);
+    }
+  };
 });
 

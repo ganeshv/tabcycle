@@ -1,0 +1,13 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="100%" height="100%" fill="#f2e7d9" />
+
+    <!-- Large Wheel (centered) -->
+    <circle cx="200" cy="200" r="140" stroke="black" fill="none" stroke-width="20"/>
+
+    <!-- Small Wheel -->
+    <circle cx="320" cy="300" r="60" stroke="black" fill="none" stroke-width="20"/>
+
+    <!-- Curved line connecting the wheels 
+    <path d="M 200 200 Q 260 230, 320 300" stroke="black" fill="none" stroke-width="20"/> -->
+</svg>
